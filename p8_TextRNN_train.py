@@ -25,7 +25,7 @@ tf.app.flags.DEFINE_string("ckpt_dir","text_rnn_checkpoint/","checkpoint locatio
 tf.app.flags.DEFINE_integer("sequence_length",100,"max sentence length")
 tf.app.flags.DEFINE_integer("embed_size",100,"embedding size")
 tf.app.flags.DEFINE_boolean("is_training",True,"is traning.true:tranining,false:testing/inference")
-tf.app.flags.DEFINE_integer("num_epochs",60,"embedding size")
+tf.app.flags.DEFINE_integer("num_epochs",100,"embedding size")
 tf.app.flags.DEFINE_integer("validate_every", 1, "Validate every validate_every epochs.") #每10轮做一次验证
 tf.app.flags.DEFINE_boolean("use_embedding",True,"whether to use embedding or not.")
 tf.app.flags.DEFINE_string("training_data_path","../data/ptit-train.txt","path of traning data.") #train-zhihu4-only-title-all.txt===>training-data/test-zhihu4-only-title.txt--->'training-data/train-zhihu5-only-title-multilabel.txt'
@@ -60,6 +60,7 @@ def main(_):
         #    pickle.dump((trainX,trainY,testX,testY,vocabulary_index2word),data_f)
         ###############################################################################################
         print("trainX[0]:", trainX[0]) #;print("trainY[0]:", trainY[0])
+        print("TestX : ",len(testX))
         # Converting labels to binary vectors
         print("end padding & transform to one hot...")
     #2.create session.
@@ -103,8 +104,8 @@ def main(_):
             # 4.validation
             print(epoch,FLAGS.validate_every,(epoch % FLAGS.validate_every==0))
             if epoch % FLAGS.validate_every==0:
-                #eval_loss, eval_acc=do_eval(sess,textRNN,testX,testY,batch_size,vocabulary_index2word_label)
-                #print("Epoch %d Validation Loss:%.3f\tValidation Accuracy: %.3f" % (epoch,eval_loss,eval_acc))
+                eval_loss, eval_acc=do_eval(sess,textRNN,testX,testY,batch_size,vocabulary_index2word_label)
+                print("Epoch %d Validation Loss:%.3f\tValidation Accuracy: %.3f" % (epoch,eval_loss,eval_acc))
                 #save model to checkpoint
                 save_path=FLAGS.ckpt_dir+"model.ckpt"
                 saver.save(sess,save_path,global_step=epoch)
@@ -149,17 +150,19 @@ def assign_pretrained_word_embedding(sess,vocabulary_index2word,vocab_size,textR
 def do_eval(sess,textRNN,evalX,evalY,batch_size,vocabulary_index2word_label):
     number_examples=len(evalX)
     eval_loss,eval_acc,eval_counter=0.0,0.0,0
+    batch_size = 1
+    #print("\n\nyooooooooooooo\n\n"),zip(range(0,number_examples,batch_size),range(batch_size,number_examples,batch_size))
     for start,end in zip(range(0,number_examples,batch_size),range(batch_size,number_examples,batch_size)):
+        
         curr_eval_loss, logits,curr_eval_acc= sess.run([textRNN.loss_val,textRNN.logits,textRNN.accuracy],#curr_eval_acc--->textCNN.accuracy
                                           feed_dict={textRNN.input_x: evalX[start:end],textRNN.input_y: evalY[start:end]
                                               ,textRNN.dropout_keep_prob:1})
-        #label_list_top5 = get_label_using_logits(logits_[0], vocabulary_index2word_label)
+        #label_list_top5 = get_label_using_logits(logits, vocabulary_index2word_label)
         #curr_eval_acc=calculate_accuracy(list(label_list_top5), evalY[start:end][0],eval_counter)
         eval_loss,eval_acc,eval_counter=eval_loss+curr_eval_loss,eval_acc+curr_eval_acc,eval_counter+1
-        print("number ex",number_examples)    
-        print("batch_size",batch_size)
-        print("eval counter",eval_counter)
-        print("eval_acc",eval_acc)
+        
+    print("eval counter",eval_counter)
+    print("eval_acc",eval_acc)    
     
     return eval_loss/float(eval_counter),eval_acc/float(eval_counter)
 
